@@ -1,0 +1,18 @@
+
+fractals.f90,295
+SUBROUTINE makePoints(5,52
+SUBROUTINE iterateLine(11,247
+SUBROUTINE addBetween(88,3371
+SUBROUTINE generateOneDimFractal(116,4635
+SUBROUTINE KochIsland(173,7136
+SUBROUTINE getVariables(200,8143
+SUBROUTINE sneakPoints(223,8747
+SUBROUTINE makeGrid(278,10986
+SUBROUTINE writeGrid(300,11556
+
+openmod.f90,35
+        SUBROUTINE openfile(6,133
+
+parameters.f90,0
+
+main.f90,0

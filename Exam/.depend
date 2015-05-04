@@ -1,0 +1,4 @@
+fractals.o : fractals.f90 openmod.o parameters.o 
+main.o : main.f90 openmod.o fractals.o parameters.o 
+openmod.o : openmod.f90 
+parameters.o : parameters.f90 
