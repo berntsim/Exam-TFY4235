@@ -1,6 +1,6 @@
 MODULE openmod
 IMPLICIT NONE
-        INTEGER, PARAMETER      :: test = 1, test2 = 2
+        INTEGER, PARAMETER      :: test = 1, test2 = 2, twodim = 3, mode = 3
         INTEGER                 :: res 
 CONTAINS
         SUBROUTINE openfile(filename, filenr)

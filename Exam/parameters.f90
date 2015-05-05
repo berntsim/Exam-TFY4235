@@ -41,10 +41,27 @@ integer                                           :: GVxreq, GVxmin
 integer                                           :: GVyreq, GVymin
 !For calculating the max value of y in the grid
 
+integer, dimension (:,:), allocatable           :: Indices
+!To keep track of indecies on the drum
 
+!real(wp), dimension(:), allocatable             :: U
+!The U to 
 
+complex, dimension(:), allocatable              :: Ucmplx
+!Using complex for handy mapping of grid points indices
+!to actual position on the grid.
 
+real(wp), dimension(:,:), allocatable            :: Amatrix
+!The matrix for solving the dirichlet eigenvalue problem
 
-!integer, parameter                      :: test = 29
+integer                                         :: Ncounter
+!Dimension for some of the matrices used in solving 
+!the eigenmodes.
+real(wp), dimension(:), allocatable             :: U
+!The eigenvector will be stored in this value 
+real(wp), dimension(:,:), allocatable           :: modeGrid
+!The grid with the mode vibrations
+integer, parameter                              :: modenumber = 1 
+!To determine what mode to plot
 END MODULE
 

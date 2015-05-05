@@ -21,8 +21,8 @@ F77LDFLAGS  =  -L$(HOME)/Fortran/Lib/
 
 F90         = gfortran
 F90FLAGS    = -Wall -Wextra
-F90LIBS     =  
-#F90LIBS     = -lmod -lnr -llapack90 -llapack -lpgplot -lU77 
+!F90LIBS     =  
+F90LIBS     = -I/usr/local/include -llapack95 -llapack 
 F90LDFLAGS  = -s -L$(HOME)/Fortran/Lib/ 
 
 LIBS        =  $(F90LIBS) 	

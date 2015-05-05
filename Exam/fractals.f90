@@ -1,6 +1,7 @@
 MODULE fractals
 use parameters
 use openmod
+use F95_LAPACK, only: LA_SYEVD
 contains
 SUBROUTINE makePoints()
         FractalArray(1) = CMPLX(0,0)
@@ -13,9 +14,9 @@ SUBROUTINE iterateLine(ILposStart, ILposEnd, ILArray)
 !segment, to which one applies the quadratic Koch generator. 
         complex, intent(in)                     :: ILposStart, ILposEnd
         !start and end position of the line to iterate over
-        complex, dimension(9), intent(inout)      :: ILArray
+        complex, dimension(9), intent(inout)    :: ILArray
         !The complex array of the line segment
-        complex, dimension(2)                     :: ILsub
+        complex, dimension(2)                   :: ILsub
         !The parts of the line which is moved in dimension
         logical                                 :: ILisX
         !Keeping track of change in x or y direction
@@ -279,34 +280,112 @@ SUBROUTINE makeGrid()
 !In this routine, the grid is created with the boundary,
 !in such a way that one keeps track of what points are 
 !inside, outside or on the boundary
-        integer  :: MGi
-        !iterator 
-        integer :: MGx, MGy
+        integer  :: MGi, MGj
+        !iterators 
+        logical :: KeepTrack
+        !keeps track on wether the boundary is crossed or not
+        !in the previous step
+        integer :: counter
+        !Counts steps taken since the boundary is crossed. This
+        !value will be 0 outside, 1 on the boundary and keep 
+        !counting while inside.
+        complex :: MGxy
+        integer :: KL
         
-        allocate(Grid(2*Nreq+2,2*Nreq+2))
+        allocate(Grid(2*Nreq+2,2*Nreq+2), STAT = KL)
+!        print*, KL
         Grid = 0
         do MGi = 1,Nfrac*8
                 MGx = int(REALPART(ExtendedArray(MGi)))
                 MGy = int(IMAG(ExtendedArray(MGi)))
                 Grid(MGx,MGy) = 1
         end do
-!        do MGi = 1,Nreq
-                
-!        end do
 
+        KeepTrack = .false.
+        counter = 0
+        do MGi = 1,2*Nreq+2
+                do MGj = 1,2*Nreq+2
+                        MGxy = CMPLX(MGi,MGj)
+                        !We now test if we cross the boundary
+                        !and update values to keep track.
+                        !The ANY statement checks if MGxy exist
+                        !in any element in ExtendedArray. In 
+                        !other words, it checks if one is at
+                        !the boundary or not.
+                        if (ANY(ExtendedArray == MGxy) .and.&
+                           (counter == 0)) then
+                                KeepTrack = .true.
+                                counter = 1
+                        !We now check if we are not on the boundary, and
+                        !if the counter is 1, i.e. that we croseed it at
+                        !the previous point.
+                        else if (.not. ANY(ExtendedArray .eq. MGxy) .and.&
+                                (counter == 1)) then
+                                !We now check the point to the left, since 
+                                !we iterate to the right, and the left point
+                                !will indicate if we are inside or not. If
+                                !we are inside -> update grid point and 
+                                !counter. If not -> we are outside, and
+                                !we update values accordingly.
+                                if (Grid(MGi-1,MGj) == 1) then
+                                        Grid(MGi,MGj) = 1
+                                        counter = counter + 1
+                                else
+                                        KeepTrack = .false.
+                                        counter = 0
+                                end if
+                        !Here we check if we are not on the boundary, and 
+                        !if we are inside. We then update the grid point 
+                        !that is inside, and keep the counter running
+                        else if (.not. ANY(ExtendedArray .eq. MGxy) .and.&
+                                (KeepTrack)) then
+                                Grid(MGi,MGj) = 1
+                                counter = counter + 1
+                        !The final test checks whether we are on the
+                        !boundary, and whether the previous point 
+                        !also was on the boundary.
+                        else if (ANY(ExtendedArray .eq. MGxy) .and.&
+                                 (counter /= 1) ) then
+                                KeepTrack = .false.
+                                counter = 0
+                        end if
+                end do
+        end do
+
+END SUBROUTINE
+
+SUBROUTINE writeFractal()
+!This subroutine is used for generating plots of the
+!fractal shape. This is in 2d, since we have not yet
+!put it on the grid, and updated inside/outside values.
+        call openfile('3dfractal.dat',twodim)
+        do i =1,8*Nfrac
+                write(twodim,*) REAL(ExtendedArray(i))*delta,&
+                      IMAG(extendedArray(i))*delta, 0
+        end do 
+END SUBROUTINE
+
+SUBROUTINE plotFractal()
+        call openfile('2dfractal.dat',twodim)
+        do i =1,8*Nfrac
+                write(twodim,*) REAL(ExtendedArray(i))*delta,&
+                      IMAG(extendedArray(i))*delta
+        end do 
 END SUBROUTINE
 
 
 SUBROUTINE writeGrid()
+!This sibroutine writes the data from the grid
+!to a file.
         integer :: WGi,WGj
         real(wp) :: WGx,WGy
         call openfile('fracBound.dat',test2)
-        call makeGrid()
+!        call makeGrid()
         WGx = 0
         WGy = delta
-        do WGi = 1,2*Nreq
+        do WGi = 1,2*Nreq+2
                 WGx = WGx + delta
-                do WGj = 1,2*Nreq
+                do WGj = 1,2*Nreq+2
                         write(test2,*) WGx, WGy, Grid(WGi,WGj)
                         WGy = WGy + delta
                 end do
@@ -315,8 +394,135 @@ SUBROUTINE writeGrid()
         end do
 END SUBROUTINE
 
+SUBROUTINE iterateGrid()
+!This subroutine assigns a counting value to every
+!point inside the drum, not including the boundary.
+        integer :: IGi, IGj
+        !iterators
+        integer :: IGcounter
+        !to number the indices
+        complex :: IGij        
+
+!        call makeGrid()
+        allocate(Indices(2*Nreq+2,2*Nreq+2))
+        
+        Indices = 0
+        IGcounter = 1
+        do IGi = 1, 2*Nreq+2
+                do IGj = 1, 2*Nreq+2
+                        IGij = CMPLX(IGi,IGj)
+                        !Checking if we are inside the drum and
+                        !not on the boundary
+                        if (.not. ANY(ExtendedArray .eq. IGij) .and.&
+                           (Grid(IGi,IGj) .eq. 1)) then
+                                Indices(IGi,IGj) = IGcounter
+                                IGcounter = IGcounter + 1 
+                        end if
+                end do
+        end do
+        Ncounter = IGcounter -1
+END SUBROUTINE
+
+SUBROUTINE generateAmatrix()
+!This subroutine generates the matrix A
+!for the Dirichlet eigenvalue problem.
+        integer :: GAi, GAj, GAu, GAd, GAl, GAr, GAp
+        !iterators and neighbourcheckers
+        
+        allocate(AMatrix(Ncounter,Ncounter))
+        allocate(Ucmplx(Ncounter))
+        AMatrix = 0
+        do GAi = 1,2*Nreq+2
+                do GAj = 1,2*Nreq+2
+                        if (Indices(GAi,GAj) == 0) then
+                                cycle
+                        end if
+                        GAp = Indices(GAi,GAj)
+                        GAu = Indices(GAi,GAj+1)
+                        GAd = Indices(GAi,GAj-1)
+                        GAl = Indices(GAi-1,GAj)
+                        GAr = Indices(GAi+1,GAj)
+                        AMatrix(GAp,GAp) = 4
+                        Ucmplx(GAp) = CMPLX(GAi,GAj)
+                        if (GAu .ne. 0) then
+                                AMatrix(GAu,GAp) = -1
+                        end if
+                        if (GAd .ne. 0) then
+                                AMatrix(GAd,GAp) = -1
+                        end if
+                        if (GAl .ne. 0) then
+                                AMatrix(GAl,GAp) = -1
+                        end if
+                        if (GAr .ne. 0) then
+                                AMatrix(GAr,GAp) = -1
+                        end if
+                end do
+        end do
+END SUBROUTINE
+
+SUBROUTINE solveEVP()
+!This routine solves the eigenvalueproblem using
+!the LAPACK routine LA_SYEV
+        integer :: SEVPi
+        !iterators
+        call LA_SYEVD(Amatrix,U,'V','L')
+        allocate(modeGrid(Ncounter,Ncounter))
+        modegrid = 0
+        do SEVPi = 1, Ncounter
+                modeGrid(nint(real(Ucmplx(SEVPi))),nint(IMAG(Ucmplx(SEVPi)))) = &
+                AMatrix(SEVPi,modenumber)                
+        end do
+END SUBROUTINE
+
+SUBROUTINE plotMode()
+!This subroutine writes the data to file
+        integer :: PMi, PMj
+        !Iterators
+        real(wp) :: PMx, PMy
+        
+        PMx = delta
+        PMy = PMx
+        call openfile("mode.dat",mode)
+        do PMi = 1, 2*Nreq + 2
+                do PMj = 1,2*Nreq + 2
+                        write(mode,*) PMx, PMy, modeGrid(PMi,PMj)
+                        PMy = PMy + delta 
+                end do
+                write(mode,*)
+                PMy = delta
+                PMx = PMx + delta
+        end do 
+        
+END SUBROUTINE
+
+SUBROUTINE plot_fractal()
+        integer, parameter :: gnuplotter = 28
+        open (unit=gnuplotter, file = "plotModes.gnu")
+        write(gnuplotter,*) 'set terminal png size 600,500 enhanced font "Helvetica,12"'
+        write(gnuplotter,*) 'set output "figures/fractal',l_dim-1,'.png"'
+        write(gnuplotter,*) 'set xlabel "x-points (x/L)"'
+        write(gnuplotter,*) 'set title "The plot of mode number ',l_dim-1,'"' 
+        write(gnuplotter,*) 'set ylabel "y-points (y/L)"'
+        write(gnuplotter,*) 'plot "2dfractal.dat" w l notitle' 
+        Call SYSTEM('gnuplot -p "plotModes.gnu"') 
+        Call SYSTEM('rm plotModes.gnu')
+END SUBROUTINE
+
+
+
+SUBROUTINE plot_mode()
+        integer, parameter :: gnuplotter = 28
+        open (unit=gnuplotter, file = "plotModes.gnu")
+        write(gnuplotter,*) 'set terminal png size 600,500 enhanced font "Helvetica,12"'
+        write(gnuplotter,*) 'set output "figures/mode',modeNumber,'.png"'
+        write(gnuplotter,*) 'set xlabel "x-points (x/L)"'
+        write(gnuplotter,*) 'set title "The plot of mode number ',modeNumber,'"' 
+        write(gnuplotter,*) 'set ylabel "y-points (y/L)"'
+        write(gnuplotter,*) 'splot "mode.dat" w l notitle,&
+                             "3dfractal.dat" w l fc rgb "black" notitle' 
+        Call SYSTEM('gnuplot -p "plotModes.gnu"') 
+        Call SYSTEM('rm plotModes.gnu')
+END SUBROUTINE
+
 END MODULE
-
-
-
 

@@ -2,6 +2,7 @@ PROGRAM main
 use parameters
 use fractals
 use openmod
+use F95_LAPACK, only : la_syev
 IMPLICIT NONE
         integer :: i
         !call makePoints()
@@ -9,14 +10,22 @@ IMPLICIT NONE
         call getVariables()
         call generateOneDimFractal()
         call KochIsland()
-        print*, size(FractalArray)
         call sneakPoints()
-!        do i = 1,Nfrac*4
-!                write(test,*) REAL(IslandArray(i)), IMAG(IslandArray(i))
-        do i =1,8*Nfrac
-                write(test,*) REAL(ExtendedArray(i)), IMAG(extendedArray(i))
+        call writeFractal()
+!        call writeGrid()
+!        print*, Nreq*2 + 2
+        call makeGrid()
+        call iterateGrid()
+        call generateAmatrix()
+        allocate(U(Ncounter))
+        call solveEVP()
+        call plotMode()
+        call plot_mode()
+        call plot_fractal()
+        do i = 1,10
+                print*, U(i)
         end do
-        call writeGrid()
-!        call makeGrid()
-
+        do i = 1,10
+                print*, sqrt(U(i))/delta
+        end do
 END PROGRAM
