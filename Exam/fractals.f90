@@ -3,15 +3,17 @@ use parameters
 use openmod
 use F95_LAPACK, only: LA_SYEVD
 contains
-SUBROUTINE makePoints()
-        FractalArray(1) = CMPLX(0,0)
-        FractalArray(Nfrac) = CMPLX(4,0)
-        call iterateLine(FractalArray(1),FractalArray(Nfrac),FractalArray)  
-END SUBROUTINE
+
+
+
 
 SUBROUTINE iterateLine(ILposStart, ILposEnd, ILArray)
-!Actually does the l-iterations. This function takes in start end end point of the line
-!segment, to which one applies the quadratic Koch generator. 
+
+!==============================================================
+!This subroutine does the l-iterations. It takes in start
+!and end point of the linesegment, to which one applies the
+!quadratic Koch generator. 
+!==============================================================
         complex, intent(in)                     :: ILposStart, ILposEnd
         !start and end position of the line to iterate over
         complex, dimension(9), intent(inout)    :: ILArray
@@ -87,7 +89,10 @@ END SUBROUTINE
 
 
 SUBROUTINE addBetween(ABisX, ABisPosX, ABisPosY, ABpos1, ABpos2, ABArray)
+
+!==================================================================
 !This routine creates Koch curve in between the argument points
+!==================================================================
         complex, intent(in)                      :: ABpos1, ABpos2
         !The points defining the line to change
         logical, intent(in)                      :: ABisX, ABisPosX
@@ -115,13 +120,16 @@ SUBROUTINE addBetween(ABisX, ABisPosX, ABisPosY, ABpos1, ABpos2, ABArray)
 END SUBROUTINE
 
 SUBROUTINE generateOneDimFractal()
-!This is the main routine for the fractal module.
+
+!==========================================================
+!This is the main routine for the fractal creation.
 !In this routine, the fractal is generated for l_dim
 !iterations, and returns a Koch fractal at level l_dim.
 !The process is so that the points are shiftet 4 places
 !to the right, and new points are introduced in between,
 !which are Koch curves. The arrays are allocated and
-!deallocated accordingly.        
+!deallocated accordingly.
+!==========================================================
         complex, dimension(:), allocatable      :: ODFtmp
         complex, dimension(9)                   :: ODFline
         integer                                 :: ODF_i, ODF_j, ODF_k
@@ -172,26 +180,33 @@ SUBROUTINE generateOneDimFractal()
 END SUBROUTINE
 
 SUBROUTINE KochIsland()
+
+!==============================================================
+!This subrotuine connectes the line segment which have 
+!been through the fractal generator, and makes the 
+!"Koch Island", i.e. the square fractal.
+!==============================================================
         integer :: Ki
-        integer :: Ky_max
+        integer :: K_max
         
         !The point where the line segments needs to be connected
-        Ky_max = 4**(l_dim-1)
+        K_max = 4**(l_dim-1)
 
         !Iterating over the FractalArray and placing the elements
         !into the islandArray. Note that we iterate backwards for 
         !the second and third FractalArrays in order to obtain a
-        !seamless connection.
+        !seamless connection (keeping in mind how gnuplot inter-
+        !prets the data).
         do Ki = 1, Nfrac
                 IslandArray(Ki) = FractalArray(Ki)
                 IslandArray(Ki + 2*NFrac) = &
-                        FractalArray(NFrac-Ki) + CMPLX(0,-Ky_max)
+                        FractalArray(NFrac-Ki) + CMPLX(0,-K_max)
         end do
-        FractalArray = FractalArray*CMPLX(0,-1)+CMPLX(Ky_max,0)
+        FractalArray = FractalArray*CMPLX(0,-1)+CMPLX(K_max,0)
         do Ki = 1, Nfrac
                 IslandArray(Ki + Nfrac) = FractalArray(Ki)
                 IslandArray(Ki + 3*Nfrac) = FractalArray(Nfrac+1-Ki)&
-                + CMPLX(-Ky_max,0) 
+                + CMPLX(-K_max,0) 
         end do
 
         !Shifting the fractal to the 1.st quadrant:
@@ -199,9 +214,11 @@ SUBROUTINE KochIsland()
 END SUBROUTINE
 
 SUBROUTINE getVariables()
+
+!=====================================================
 !Getting the variables necessary for creating
 !the grid with the fractal
-
+!=====================================================
         integer :: GVi
         !iterator
 
@@ -222,11 +239,14 @@ SUBROUTINE getVariables()
 END SUBROUTINE
 
 SUBROUTINE sneakPoints()
+
+!=======================================================
 !The purpose of this subroutine is to extend the
 !fractal array so that one has a precission greater
 !than the smallest fractal block.
 !Notice that we now get three extra points where
 !we connect the fractal lines!
+!=======================================================
         integer :: SPi
         logical :: SPisX, SPisPosX, SPisY
 
@@ -273,13 +293,18 @@ SUBROUTINE sneakPoints()
                 SPisPosX = .false.
         end do
         ExtendedArray(8*Nfrac) = IslandArray(4*Nfrac)
-        
+        delta = delta/2 
+        !The delta must be updated since we now sneak in new
+        !points
 END SUBROUTINE
 
 SUBROUTINE makeGrid()
-!In this routine, the grid is created with the boundary,
+
+!==========================================================
+!This subroutine creates the grid  with the boundary,
 !in such a way that one keeps track of what points are 
 !inside, outside or on the boundary
+!==========================================================
         integer  :: MGi, MGj
         !iterators 
         logical :: KeepTrack
@@ -292,8 +317,7 @@ SUBROUTINE makeGrid()
         complex :: MGxy
         integer :: KL
         
-        allocate(Grid(2*Nreq+2,2*Nreq+2), STAT = KL)
-!        print*, KL
+        allocate(Grid(2*Nreq+2,2*Nreq+2))
         Grid = 0
         do MGi = 1,Nfrac*8
                 MGx = int(REALPART(ExtendedArray(MGi)))
@@ -355,9 +379,13 @@ SUBROUTINE makeGrid()
 END SUBROUTINE
 
 SUBROUTINE writeFractal()
+
+!===========================================================
 !This subroutine is used for generating plots of the
 !fractal shape. This is in 2d, since we have not yet
 !put it on the grid, and updated inside/outside values.
+!===========================================================
+
         call openfile('3dfractal.dat',twodim)
         do i =1,8*Nfrac
                 write(twodim,*) REAL(ExtendedArray(i))*delta,&
@@ -366,6 +394,10 @@ SUBROUTINE writeFractal()
 END SUBROUTINE
 
 SUBROUTINE plotFractal()
+
+!============================================================
+!This subroutine writes the 2d-fractal to a file.
+!============================================================
         call openfile('2dfractal.dat',twodim)
         do i =1,8*Nfrac
                 write(twodim,*) REAL(ExtendedArray(i))*delta,&
@@ -375,12 +407,15 @@ END SUBROUTINE
 
 
 SUBROUTINE writeGrid()
+
+!===========================================================
 !This sibroutine writes the data from the grid
 !to a file.
+!===========================================================
         integer :: WGi,WGj
         real(wp) :: WGx,WGy
+
         call openfile('fracBound.dat',test2)
-!        call makeGrid()
         WGx = 0
         WGy = delta
         do WGi = 1,2*Nreq+2
@@ -395,15 +430,18 @@ SUBROUTINE writeGrid()
 END SUBROUTINE
 
 SUBROUTINE iterateGrid()
+
+!========================================================
 !This subroutine assigns a counting value to every
 !point inside the drum, not including the boundary.
+!========================================================
         integer :: IGi, IGj
         !iterators
         integer :: IGcounter
         !to number the indices
         complex :: IGij        
 
-!        call makeGrid()
+        call makeGrid()
         allocate(Indices(2*Nreq+2,2*Nreq+2))
         
         Indices = 0
@@ -417,6 +455,8 @@ SUBROUTINE iterateGrid()
                            (Grid(IGi,IGj) .eq. 1)) then
                                 Indices(IGi,IGj) = IGcounter
                                 IGcounter = IGcounter + 1 
+                        else if (Grid(IGi,IGj) .eq. 1) then
+                                Indices(IGi,IGj) = -1
                         end if
                 end do
         end do
@@ -424,17 +464,22 @@ SUBROUTINE iterateGrid()
 END SUBROUTINE
 
 SUBROUTINE generateAmatrix()
+
+!=======================================================
 !This subroutine generates the matrix A
 !for the Dirichlet eigenvalue problem.
+!=======================================================
         integer :: GAi, GAj, GAu, GAd, GAl, GAr, GAp
         !iterators and neighbourcheckers
         
         allocate(AMatrix(Ncounter,Ncounter))
         allocate(Ucmplx(Ncounter))
+!        allocate(U(Ncounter))
+ 
         AMatrix = 0
-        do GAi = 1,2*Nreq+2
-                do GAj = 1,2*Nreq+2
-                        if (Indices(GAi,GAj) == 0) then
+        do GAi = 2,2*Nreq+2
+                do GAj = 2,2*Nreq+2
+                        if (Indices(GAi,GAj) <= 0) then
                                 cycle
                         end if
                         GAp = Indices(GAi,GAj)
@@ -442,27 +487,31 @@ SUBROUTINE generateAmatrix()
                         GAd = Indices(GAi,GAj-1)
                         GAl = Indices(GAi-1,GAj)
                         GAr = Indices(GAi+1,GAj)
-                        AMatrix(GAp,GAp) = 4
+                      AMatrix(GAp,GAp) = 4
                         Ucmplx(GAp) = CMPLX(GAi,GAj)
-                        if (GAu .ne. 0) then
+                        if (GAu .gt. 0) then
                                 AMatrix(GAu,GAp) = -1
                         end if
-                        if (GAd .ne. 0) then
+                        if (GAd .gt. 0) then
                                 AMatrix(GAd,GAp) = -1
                         end if
-                        if (GAl .ne. 0) then
+                        if (GAl .gt. 0) then
                                 AMatrix(GAl,GAp) = -1
                         end if
-                        if (GAr .ne. 0) then
+                        if (GAr .gt. 0) then
                                 AMatrix(GAr,GAp) = -1
                         end if
-                end do
+              end do
         end do
 END SUBROUTINE
 
 SUBROUTINE solveEVP()
+
+!======================================================
 !This routine solves the eigenvalueproblem using
-!the LAPACK routine LA_SYEV
+!the LAPACK routine LA_SYEV, and maps the eigenvector
+!values back to the corresponding points on the grid.
+!======================================================
         integer :: SEVPi
         !iterators
         call LA_SYEVD(Amatrix,U,'V','L')
@@ -475,7 +524,10 @@ SUBROUTINE solveEVP()
 END SUBROUTINE
 
 SUBROUTINE plotMode()
+
+!====================================================
 !This subroutine writes the data to file
+!====================================================
         integer :: PMi, PMj
         !Iterators
         real(wp) :: PMx, PMy
@@ -496,6 +548,11 @@ SUBROUTINE plotMode()
 END SUBROUTINE
 
 SUBROUTINE plot_fractal()
+
+!=======================================================
+!This subroutine uses gnuplot to plot the 2-dim fractal
+!and saves it as a .png file
+!=======================================================
         integer, parameter :: gnuplotter = 28
         open (unit=gnuplotter, file = "plotModes.gnu")
         write(gnuplotter,*) 'set terminal png size 600,500 enhanced font "Helvetica,12"'
@@ -511,6 +568,11 @@ END SUBROUTINE
 
 
 SUBROUTINE plot_mode()
+
+!=======================================================
+!This subroutine uses gnuplot to plot the eigenmodes, and
+!saves it to a .png file
+!=======================================================
         integer, parameter :: gnuplotter = 28
         open (unit=gnuplotter, file = "plotModes.gnu")
         write(gnuplotter,*) 'set terminal png size 600,500 enhanced font "Helvetica,12"'
@@ -523,6 +585,155 @@ SUBROUTINE plot_mode()
         Call SYSTEM('gnuplot -p "plotModes.gnu"') 
         Call SYSTEM('rm plotModes.gnu')
 END SUBROUTINE
+
+SUBROUTINE findCorners()
+
+!======================================================
+!This subroutine examines the neighbouring points of
+!the point of interest, and checks if its at a corner 
+!or on a line part. 
+!======================================================
+        integer :: FCi, FCj
+        !Iterators
+        allocate(notCorners(Ncounter))
+        notCorners = 0
+        do FCi = 1,2*Nreq+2
+                do FCj = 1, 2*Nreq+2
+                        if (Indices(FCi,FCj) .gt. 0) then
+                                if (Indices(FCi+2,FCj).eq.0) then
+                                        notCorners(Indices(FCi,FCj)) = &
+                                        notCorners(INdices(FCi,FCJ)) + 1
+                                end if
+                                if (Indices(FCi-2,FCj).eq.0) then 
+                                        notCorners(Indices(FCi,FCj)) = &
+                                        notCorners(INdices(FCi,FCJ)) + 1
+                                end if                                
+                                if (Indices(FCi,FCj+2).eq.0) then
+                                        notCorners(Indices(FCi,FCj)) = &
+                                        notCorners(INdices(FCi,FCJ)) + 1
+                                end if                                
+                                if (INdices(FCi,FCj-2).eq.0) then
+                                        notCorners(Indices(FCi,FCj)) = &
+                                        notCorners(INdices(FCi,FCJ)) + 1
+                                end if                                
+                        end if
+                end do
+        end do
+END SUBROUTINE
+
+SUBROUTINE generateBmatrix()
+
+!=======================================================
+!This subroutine generates the matrix for the biharmonic
+!eigenvalue problem with homogeneous Dirichlet boundary
+!conditions.
+!=======================================================
+         integer :: GBi, GBj, GBu, GBd, GBl, GBr, GBp
+        !iterators and neighbourcheckers
+        integer :: GBu2, GBd2, GBl2, GBr2
+        integer :: GBur, GBul, GBdr, GBdl
+        
+        allocate(Bmatrix(Ncounter,Ncounter))
+        allocate(UBcmplx(Ncounter))
+        call findCorners()
+        BMatrix = 0
+        do GBi = 2,2*Nreq+2
+                do GBj = 2,2*Nreq+2
+                        if (Indices(GBi,GBj) <= 0) then
+                                cycle
+                        end if
+                        GBp = Indices(GBi,GBj)
+                        GBu = Indices(GBi,GBj+1)
+                        GBd = Indices(GBi,GBj-1)
+                        GBl = Indices(GBi-1,GBj)
+                        GBr = Indices(GBi+1,GBj)
+                        GBu2 = Indices(GBi,GBj+2)
+                        GBd2 = Indices(GBi,GBj-2)
+                        GBl2 = Indices(GBi-2,GBj)
+                        GBr2 = Indices(GBi+2,GBj)
+                        GBur = Indices(GBi+1,GBj+1)
+                        GBul = Indices(GBi-1,GBj+1)
+                        GBdl = Indices(GBi-1,GBj-1)
+                        GBdr = Indices(GBi+1,GBj-1)
+                        BMatrix(GBp,GBp) = 20 + notCorners(GBp)
+                        UBcmplx(GBp) = CMPLX(GBi,GBj)
+                        if (GBu .gt. 0) then
+                                BMatrix(GBu,GBp) = -8
+                        end if
+                        if (GBd .gt. 0) then
+                                BMatrix(GBd,GBp) = -8
+                        end if
+                        if (GBl .gt. 0) then
+                                BMatrix(GBl,GBp) = -8
+                        end if
+                        if (GBr .gt. 0) then
+                                BMatrix(GBr,GBp) = -8
+                        end if
+                         if (GBu2 .gt. 0) then
+                                BMatrix(GBu2,GBp) = 1
+                        end if
+                        if (GBd2 .gt. 0) then
+                                BMatrix(GBd2,GBp) = 1
+                        end if
+                        if (GBl2 .gt. 0) then
+                                BMatrix(GBl2,GBp) = 1
+                        end if
+                        if (GBr2 .gt. 0) then
+                                BMatrix(GBr2,GBp) = 1
+                        end if
+                         if (GBur .gt. 0) then
+                                BMatrix(GBur,GBp) = 2
+                        end if
+                        if (GBul .gt. 0) then
+                                BMatrix(GBul,GBp) = 2
+                        end if
+                        if (GBdl .gt. 0) then
+                                BMatrix(GBdl,GBp) = 2
+                        end if
+                        if (GBdr .gt. 0) then
+                                BMatrix(GBdr,GBp) = 2
+                        end if
+              end do
+        end do
+END SUBROUTINE
+
+SUBROUTINE solveEVPB()
+
+!======================================================
+!This routine solves the eigenvalueproblem using
+!the LAPACK routine LA_SYEV, and maps the eigenvector
+!values back to the corresponding points on the grid.
+!======================================================
+        integer :: SEVPBi
+        !iterators
+        call LA_SYEVD(Bmatrix,U,'V','L')
+        allocate(modeGrid(Ncounter,Ncounter))
+        modegrid = 0
+        do SEVPBi = 1, Ncounter
+                modeGrid(nint(real(UBcmplx(SEVPBi))),nint(IMAG(UBcmplx(SEVPBi)))) = &
+                BMatrix(SEVPBi,modenumber)                
+        end do
+END SUBROUTINE
+
+SUBROUTINE plot_biharmonic()
+
+!=======================================================
+!This subroutine uses gnuplot to plot the biharmonic
+!eigenmodes, and saves it to a .png file
+!=======================================================
+        integer, parameter :: gnuplotter = 28
+        open (unit=gnuplotter, file = "plotModes.gnu")
+        write(gnuplotter,*) 'set terminal png size 600,500 enhanced font "Helvetica,12"'
+        write(gnuplotter,*) 'set output "bi/bimode',modeNumber,'.png"'
+        write(gnuplotter,*) 'set xlabel "x-points (x/L)"'
+        write(gnuplotter,*) 'set title "The plot of biharmonic mode number ',modeNumber,'"' 
+        write(gnuplotter,*) 'set ylabel "y-points (y/L)"'
+        write(gnuplotter,*) 'splot "mode.dat" w l notitle,&
+                             "3dfractal.dat" w l fc rgb "black" notitle' 
+        Call SYSTEM('gnuplot -p "plotModes.gnu"') 
+        Call SYSTEM('rm plotModes.gnu')
+END SUBROUTINE
+
 
 END MODULE
 
